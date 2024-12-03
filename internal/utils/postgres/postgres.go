@@ -3,26 +3,25 @@ package postgres
 import (
 	"fmt"
 	"os"
-	"test-case/internal/config"
-	"test-case/internal/models"
+	"test-case/config"
+	"test-case/internal/domain/models"
+	"test-case/internal/utils/logger"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-type Database struct {
-	Database *gorm.DB
-}
-
-func New(config config.Config) (*Database, error) {
+func NewPostgresDb(config *config.Config) (*gorm.DB, error) {
 	const op = "storage.postgres.New"
 
 	var dbUrl string
 
-	if config.Env == "local" {
+	if config.Mode != "Local" {
 		dbUrl = fmt.Sprintf("host=%s port=%d user=%s "+
 			"password=%s dbname=%s sslmode=disable TimeZone=Asia/Shanghai",
-			config.Host, config.Port, config.User, config.Password, config.DbName)
+			config.Postgres.PostgresHost, config.Postgres.PostgresPort,
+			config.Postgres.PostgresUser, config.Postgres.PostgresPassword,
+			config.Postgres.PostgresDbname)
 	} else {
 		dbUrl = os.Getenv("DATABASE_URL")
 	}
@@ -32,21 +31,26 @@ func New(config config.Config) (*Database, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if config.Env != "prod" {
+	if config.Mode != "prod" {
 		db = db.Debug()
+	}
+
+	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error; err != nil {
+		logger.Logger.Fatal().Str(op, err.Error()).Msg("Pg init failed")
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err := db.AutoMigrate(&models.User{}); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &Database{Database: db}, nil
+	return db, nil
 }
 
-func (db *Database) Stop() error {
+func PostgresStop(db *gorm.DB) error {
 	const op = "storage.postgres.Stop"
 
-	storage, err := db.Database.DB()
+	storage, err := db.DB()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

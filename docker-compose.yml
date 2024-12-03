@@ -4,7 +4,7 @@ services:
   app:
     build: .
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/users?sslmode=disable
+      DATABASE_URL: postgres://postgres:password@db:5432/test-case?sslmode=disable
     ports:
       - "8080:8080"
     depends_on:
@@ -17,7 +17,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: users
+      POSTGRES_DB: test-case
     ports:
       - "5432:5432"
     healthcheck:
